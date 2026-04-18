@@ -1,22 +1,19 @@
-import { createWriteStream } from "node:fs";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import sharp from "sharp";
-import { pipe, collectBytes } from "@culvert/stream";
 import { acquire, release } from "#app/lib/archive-cache.server";
 import { env } from "#app/lib/env.server";
+import { collectBytes, pipe } from "@culvert/stream";
+import fs from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp";
 
 export type ThumbSize = "strip" | "card" | "reader";
 
 export const THUMB_SIZES: Record<
   ThumbSize,
-  { width: number; height: number | null; quality: number }
+  { width: number; height: number | null; quality: number; effort: number }
 > = {
-  strip: { width: 100, height: 150, quality: 75 },
-  card: { width: 240, height: 360, quality: 80 },
-  reader: { width: 2048, height: null, quality: 82 },
+  strip: { width: 100, height: 150, quality: 80, effort: 4 },
+  card: { width: 240, height: 360, quality: 85, effort: 5 },
+  reader: { width: 2048, height: null, quality: 90, effort: 6 },
 };
 
 export function isThumbSize(s: string): s is ThumbSize {
@@ -64,10 +61,9 @@ export async function ensureThumb(
   const pending = inflight.get(key);
   if (pending) return pending;
 
-  const promise = generateThumb(comicId, pageIndex, size, out)
-    .finally(() => {
-      inflight.delete(key);
-    });
+  const promise = generateThumb(comicId, pageIndex, size, out).finally(() => {
+    inflight.delete(key);
+  });
   inflight.set(key, promise);
   return promise;
 }
@@ -87,33 +83,27 @@ async function generateThumb(
 
     const bytes = await pipe(archive.zip.source(entry), collectBytes());
 
-    const { width, height, quality } = THUMB_SIZES[size];
-    const sharpPipeline = sharp(Buffer.from(bytes), {
-      failOn: "none",
-    }).resize({
-      width,
-      height: height ?? undefined,
-      fit: "inside",
-      withoutEnlargement: true,
-    });
+    const { width, height, quality, effort } = THUMB_SIZES[size];
+    const img = sharp(Buffer.from(bytes), { failOn: "none" })
+      .resize({
+        width,
+        height: height ?? undefined,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .grayscale(false);
 
     let webp: Buffer;
     try {
-      webp = await sharpPipeline.webp({ quality, effort: 4 }).toBuffer();
+      webp = await img
+        .webp({ quality, effort, alphaQuality: quality })
+        .toBuffer();
     } catch (err) {
       console.error(
         `[thumbnails] webp failed for ${comicId} p${pageIndex} ${size}`,
         err,
       );
-      webp = await sharp(Buffer.from(bytes), { failOn: "none" })
-        .resize({
-          width,
-          height: height ?? undefined,
-          fit: "inside",
-          withoutEnlargement: true,
-        })
-        .jpeg({ quality })
-        .toBuffer();
+      webp = await img.jpeg({ quality, mozjpeg: true }).toBuffer();
     }
 
     await fs.mkdir(path.dirname(outPath), { recursive: true });
@@ -137,10 +127,10 @@ export async function removeAllThumbs(comicId: string): Promise<void> {
 
 export async function warmCoverThumb(
   comicId: string,
-  coverPage: number,
+  pageIndex: number,
 ): Promise<void> {
   try {
-    await ensureThumb(comicId, coverPage, "card");
+    await ensureThumb(comicId, pageIndex, "card");
   } catch (err) {
     console.error(`[thumbnails] warm cover failed for ${comicId}`, err);
   }

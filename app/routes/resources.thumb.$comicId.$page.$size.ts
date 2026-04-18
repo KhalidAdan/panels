@@ -1,11 +1,8 @@
+import { requireUser } from "#app/lib/auth-utils.server";
+import { ensureThumb, isThumbSize } from "#app/lib/thumbnails.server";
+import { toReadableStream } from "@culvert/stream";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
-import { Readable } from "node:stream";
-import { requireUser } from "#app/lib/auth-utils.server";
-import {
-  ensureThumb,
-  isThumbSize,
-} from "#app/lib/thumbnails.server";
 import type { Route } from "./+types/resources.thumb.$comicId.$page.$size";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
@@ -41,9 +38,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   const nodeStream = createReadStream(absPath);
-  const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
 
-  return new Response(webStream, {
+  return new Response(toReadableStream(nodeStream), {
     status: 200,
     headers: {
       "Content-Type": "image/webp",

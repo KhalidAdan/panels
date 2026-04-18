@@ -83,7 +83,7 @@ export function decideCoverPage(
   info: ComicInfo | null | undefined,
   totalPages: number,
 ): number {
-  if (totalPages <= 0) return 0;
+  if (totalPages <= 0) return 1;
   const cover = info?.Pages?.find((p) =>
     typeof p.Type === "string" && p.Type.split(/\s+/).includes("FrontCover"),
   );
@@ -91,5 +91,5 @@ export function decideCoverPage(
     const idx = cover.Image;
     if (idx >= 0 && idx < totalPages) return idx;
   }
-  return 0;
+  return 1;
 }

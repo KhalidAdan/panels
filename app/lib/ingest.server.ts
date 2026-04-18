@@ -1,22 +1,12 @@
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { pipeline } from "node:stream/promises";
-import { pipe, collectBytes } from "@culvert/stream";
-import sharp from "sharp";
 import type { Comic } from "#app/generated/prisma/client";
-import {
-  openFromPath,
-  readComicInfoXml,
-} from "#app/lib/cbz.server";
+import { openFromPath, readComicInfoXml } from "#app/lib/cbz.server";
+import { buildFieldUpdates } from "#app/lib/comic-metadata.server";
 import {
   decideCoverPage,
   isMangaRTL,
   parseComicInfoXml,
   type ComicInfo,
 } from "#app/lib/comicinfo.server";
-import { buildFieldUpdates } from "#app/lib/comic-metadata.server";
 import {
   bindByComicVineId,
   isComicVineEnabled,
@@ -26,11 +16,14 @@ import {
 import { prisma } from "#app/lib/db.server";
 import { env } from "#app/lib/env.server";
 import { parseComicFilename } from "#app/lib/filename-parse";
-import {
-  IngestError,
-  resolveLibraryPath,
-} from "#app/lib/validate-cbz.server";
 import { warmCoverThumb } from "#app/lib/thumbnails.server";
+import { IngestError, resolveLibraryPath } from "#app/lib/validate-cbz.server";
+import { collectBytes, from, pipe, tap } from "@culvert/stream";
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp";
 
 export interface IngestOptions {
   sourcePath: string;
@@ -176,7 +169,19 @@ export async function ingestComic(
 
 export async function hashFile(absPath: string): Promise<string> {
   const hash = createHash("sha256");
-  await pipeline(createReadStream(absPath), hash);
+  const file = createReadStream(absPath);
+
+  try {
+    await pipe(
+      from(file),
+      tap((chunk: Buffer) => {
+        hash.update(chunk);
+      }),
+      collectBytes(),
+    );
+  } finally {
+    file.close();
+  }
   return hash.digest("hex");
 }
 
@@ -279,7 +284,9 @@ async function probePages(
     const entry = archive.pageOrder[i]!;
     try {
       const bytes = await pipe(archive.zip.source(entry), collectBytes());
-      const meta = await sharp(Buffer.from(bytes), { failOn: "none" }).metadata();
+      const meta = await sharp(Buffer.from(bytes), {
+        failOn: "none",
+      }).metadata();
       if (meta.width && meta.height) {
         rows.push({
           pageIndex: i,
