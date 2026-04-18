@@ -1,7 +1,19 @@
 .DS_Store
-.env
 /node_modules/
 
 # React Router
 /.react-router/
 /build/
+
+# panels
+/data
+/prisma/migrations/**/migration_lock.toml
+/app/generated
+/prisma/dev.db
+/prisma/dev.db-journal
+/prisma/dev.db-wal
+/prisma/dev.db-shm
+
+!/data/library/.gitkeep
+!/data/cache/.gitkeep
+!/data/tmp/.gitkeep
