@@ -21,10 +21,14 @@ const EnvSchema = z.object({
     .number()
     .default(Number(process.env.MAX_UPLOAD_SIZE) || DEFAULT_MAX_UPLOAD_SIZE),
 
-  // Optional: ComicVine enrichment (Phase 5)
+  // Optional: ComicVine enrichment
   COMICVINE_API_KEY: z.string().optional(),
+  COMICVINE_USER_AGENT: z
+    .string()
+    .default("panels/0.1 (self-hosted comic reader)"),
+  COMICVINE_BASE_URL: z.url().default("https://comicvine.gamespot.com/api"),
 
-  // Admin seed (Phase 1)
+  // Admin seed
   SEED_ADMIN_EMAIL: z.email().optional(),
   SEED_ADMIN_PASSWORD: z.string().min(8).optional(),
 });

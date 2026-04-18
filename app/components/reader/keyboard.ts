@@ -10,7 +10,10 @@ export interface KeyboardHandlers {
   onExit: () => void;
 }
 
-export function useReaderKeyboard(handlers: KeyboardHandlers): void {
+export function useReaderKeyboard(
+  handlers: KeyboardHandlers,
+  isRTL = false,
+): void {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target;
@@ -23,19 +26,29 @@ export function useReaderKeyboard(handlers: KeyboardHandlers): void {
       }
 
       switch (event.key) {
-        case "ArrowRight":
-        case "PageDown":
-        case " ":
-          if (event.shiftKey && event.key === " ") {
-            handlers.onPrev();
-          } else {
-            handlers.onNext();
-          }
+        case "ArrowRight": {
+          if (isRTL) handlers.onPrev();
+          else handlers.onNext();
           event.preventDefault();
           break;
-        case "ArrowLeft":
+        }
+        case "ArrowLeft": {
+          if (isRTL) handlers.onNext();
+          else handlers.onPrev();
+          event.preventDefault();
+          break;
+        }
+        case "PageDown":
+          handlers.onNext();
+          event.preventDefault();
+          break;
         case "PageUp":
           handlers.onPrev();
+          event.preventDefault();
+          break;
+        case " ":
+          if (event.shiftKey) handlers.onPrev();
+          else handlers.onNext();
           event.preventDefault();
           break;
         case "Home":
@@ -65,5 +78,5 @@ export function useReaderKeyboard(handlers: KeyboardHandlers): void {
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handlers]);
+  }, [handlers, isRTL]);
 }

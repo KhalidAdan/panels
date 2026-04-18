@@ -3,6 +3,8 @@ import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
+import { pipe, collectBytes } from "@culvert/stream";
+import sharp from "sharp";
 import type { Comic } from "#app/generated/prisma/client";
 import {
   openFromPath,
@@ -14,6 +16,13 @@ import {
   parseComicInfoXml,
   type ComicInfo,
 } from "#app/lib/comicinfo.server";
+import { buildFieldUpdates } from "#app/lib/comic-metadata.server";
+import {
+  bindByComicVineId,
+  isComicVineEnabled,
+  matchComic,
+  parseComicVineUrl,
+} from "#app/lib/comicvine.server";
 import { prisma } from "#app/lib/db.server";
 import { env } from "#app/lib/env.server";
 import { parseComicFilename } from "#app/lib/filename-parse";
@@ -21,6 +30,7 @@ import {
   IngestError,
   resolveLibraryPath,
 } from "#app/lib/validate-cbz.server";
+import { warmCoverThumb } from "#app/lib/thumbnails.server";
 
 export interface IngestOptions {
   sourcePath: string;
@@ -111,25 +121,51 @@ export async function ingestComic(
       }
     }
 
-    const comic = await prisma.comic.create({
-      data: {
-        filePath: storedPath,
-        fileHash,
-        fileSize: BigInt(archive.fileSize),
-        pageCount,
-        title,
-        series: series ?? null,
-        issueNumber: issueNumber ?? null,
-        volume: volume ?? null,
-        year: year ?? null,
-        summary,
-        publisher,
-        writer,
-        coverPage,
-        isManga,
-        metadataJson: comicInfoXml ? JSON.stringify({ comicInfo }) : null,
-        importedById: importedById ?? null,
-      },
+    const pageRows = await probePages(archive);
+
+    const comic = await prisma.$transaction(async (tx) => {
+      const created = await tx.comic.create({
+        data: {
+          filePath: storedPath,
+          fileHash,
+          fileSize: BigInt(archive.fileSize),
+          pageCount,
+          title,
+          series: series ?? null,
+          issueNumber: issueNumber ?? null,
+          volume: volume ?? null,
+          year: year ?? null,
+          summary,
+          publisher,
+          writer,
+          coverPage,
+          isManga,
+          metadataJson: comicInfoXml ? JSON.stringify({ comicInfo }) : null,
+          importedById: importedById ?? null,
+        },
+      });
+      if (pageRows.length > 0) {
+        await tx.page.createMany({
+          data: pageRows.map((row) => ({
+            comicId: created.id,
+            pageIndex: row.pageIndex,
+            isWide: row.isWide,
+            width: row.width ?? null,
+            height: row.height ?? null,
+          })),
+        });
+      }
+      return created;
+    });
+
+    void warmCoverThumb(comic.id, comic.coverPage);
+
+    // Phase 5: ComicVine enrichment. Also best-effort, also post-commit.
+    void enrichFromComicVine(comic.id, {
+      series: comic.series,
+      issueNumber: comic.issueNumber,
+      year: comic.year,
+      comicInfoWebUrl: extractComicInfoWeb(comicInfo),
     });
 
     return { status: "created", comic };
@@ -168,4 +204,96 @@ export async function walkLibraryForCbz(): Promise<string[]> {
 
   await walk(root);
   return results;
+}
+
+export async function enrichFromComicVine(
+  comicId: string,
+  seed: {
+    series?: string | null;
+    issueNumber?: string | null;
+    year?: number | null;
+    comicInfoWebUrl?: string | null;
+  },
+): Promise<void> {
+  if (!isComicVineEnabled()) return;
+
+  try {
+    const existing = await prisma.comic.findUnique({ where: { id: comicId } });
+    if (!existing) return;
+
+    const directId = seed.comicInfoWebUrl
+      ? parseComicVineUrl(seed.comicInfoWebUrl)
+      : null;
+    if (directId) {
+      const result = await bindByComicVineId(directId);
+      if (result && (result.volume || result.issue)) {
+        const updates = buildFieldUpdates(existing, result);
+        await prisma.comic.update({
+          where: { id: comicId },
+          data: updates,
+        });
+        return;
+      }
+    }
+
+    if (!seed.series) return;
+    const match = await matchComic({
+      series: seed.series,
+      issueNumber: seed.issueNumber ?? undefined,
+      year: seed.year ?? undefined,
+    });
+    if (!match) return;
+
+    const updates = buildFieldUpdates(existing, {
+      volume: match.volume,
+      issue: match.issue,
+    });
+    await prisma.comic.update({
+      where: { id: comicId },
+      data: updates,
+    });
+  } catch (err) {
+    console.error(`[ingest] comicvine enrichment failed for ${comicId}`, err);
+  }
+}
+
+function extractComicInfoWeb(info: ComicInfo | null): string | null {
+  if (!info?.Web) return null;
+  const urls = info.Web.split(/\s+/).filter(Boolean);
+  const cv = urls.find((u) => /comicvine\.gamespot\.com/.test(u));
+  return cv ?? urls[0] ?? null;
+}
+
+interface PageProbeRow {
+  pageIndex: number;
+  isWide: boolean;
+  width?: number;
+  height?: number;
+}
+
+async function probePages(
+  archive: Awaited<ReturnType<typeof openFromPath>>,
+): Promise<PageProbeRow[]> {
+  const rows: PageProbeRow[] = [];
+  for (let i = 0; i < archive.pageOrder.length; i++) {
+    const entry = archive.pageOrder[i]!;
+    try {
+      const bytes = await pipe(archive.zip.source(entry), collectBytes());
+      const meta = await sharp(Buffer.from(bytes), { failOn: "none" }).metadata();
+      if (meta.width && meta.height) {
+        rows.push({
+          pageIndex: i,
+          isWide: meta.width > meta.height,
+          width: meta.width,
+          height: meta.height,
+        });
+      } else {
+        rows.push({ pageIndex: i, isWide: false });
+      }
+    } catch (err) {
+      console.error(`[ingest] probe failed for page ${i}`, err);
+      rows.push({ pageIndex: i, isWide: false });
+    }
+  }
+  return rows;
 }

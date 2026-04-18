@@ -1,7 +1,3 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { Form, Link, data, useSearchParams } from "react-router";
-import { z } from "zod";
 import { Field } from "#app/components/forms";
 import { Button } from "#app/components/ui/button";
 import {
@@ -11,12 +7,17 @@ import {
   CardHeader,
   CardTitle,
 } from "#app/components/ui/card";
-import { auth } from "#app/lib/auth.server";
 import {
   redirectWithAuthCookies,
   requireAnonymous,
   safeRedirect,
 } from "#app/lib/auth-utils.server";
+import { auth } from "#app/lib/auth.server";
+import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { Form, Link, data, useSearchParams } from "react-router";
+import { z } from "zod";
+import type { Route } from "./+types/login";
 
 const LoginSchema = z.object({
   email: z.email(),
@@ -94,7 +95,11 @@ export default function Login({ actionData }: Route.ComponentProps) {
           <CardDescription>Welcome back to panels.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form method="post" {...getFormProps(form)} className="flex flex-col gap-2">
+          <Form
+            method="post"
+            {...getFormProps(form)}
+            className="flex flex-col gap-2"
+          >
             {form.errors ? (
               <p className="text-sm text-destructive" id={form.errorId}>
                 {form.errors.join(", ")}
@@ -120,9 +125,7 @@ export default function Login({ actionData }: Route.ComponentProps) {
               errors={fields.password.errors}
             />
 
-            <input
-              {...getInputProps(fields.redirectTo, { type: "hidden" })}
-            />
+            <input {...getInputProps(fields.redirectTo, { type: "hidden" })} />
 
             <Button type="submit" className="mt-2">
               Sign in

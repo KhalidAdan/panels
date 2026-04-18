@@ -9,6 +9,16 @@ import {
 } from "#app/components/ui/card";
 import { requireUser } from "#app/lib/auth-utils.server";
 import { prisma } from "#app/lib/db.server";
+import { thumbUrl } from "#app/lib/thumbnails";
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 export function meta() {
   return [{ title: "Library — panels" }];
@@ -97,9 +107,22 @@ export default function Library({ loaderData }: Route.ComponentProps) {
                 aria-label={comic.title}
               >
                 <div className="aspect-[2/3] w-full overflow-hidden rounded-md border bg-muted">
-                  <div className="flex h-full w-full items-center justify-center p-2 text-center text-xs text-muted-foreground">
-                    <span className="line-clamp-4">{comic.title}</span>
-                  </div>
+                  <img
+                    src={thumbUrl(comic.id, comic.coverPage, "card")}
+                    alt={`Cover of ${comic.title}`}
+                    className="h-full w-full object-cover transition-opacity"
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                    onError={(event) => {
+                      const target = event.currentTarget;
+                      target.style.display = "none";
+                      target.insertAdjacentHTML(
+                        "afterend",
+                        `<div class="flex h-full w-full items-center justify-center p-2 text-center text-xs text-muted-foreground"><span class="line-clamp-4">${escapeHtml(comic.title)}</span></div>`,
+                      );
+                    }}
+                  />
                 </div>
                 <div className="mt-2 flex flex-col gap-0.5">
                   <span className="line-clamp-2 text-sm font-medium group-hover:underline">
