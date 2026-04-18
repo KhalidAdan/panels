@@ -1,22 +1,24 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { Form, Link, data, redirect, useSearchParams } from "react-router";
 import { Button } from "#app/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "#app/components/ui/card";
 import { evict } from "#app/lib/archive-cache.server";
 import { requireUser } from "#app/lib/auth-utils.server";
 import { prisma } from "#app/lib/db.server";
 import { env } from "#app/lib/env.server";
+import { thumbUrl } from "#app/lib/thumbnails";
+import { removeAllThumbs } from "#app/lib/thumbnails.server";
 import { resolveLibraryPath } from "#app/lib/validate-cbz.server";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { Form, Link, data, redirect, useSearchParams } from "react-router";
+import type { Route } from "./+types/comics.$comicId._index";
 
 export function meta({ data }: Route.MetaArgs) {
-  return [{ title: data?.comic?.title ? `${data.comic.title} — panels` : "Comic — panels" }];
+  return [
+    {
+      title: data?.comic?.title
+        ? `${data.comic.title} — panels`
+        : "Comic — panels",
+    },
+  ];
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
@@ -52,6 +54,8 @@ export async function action({ params, request }: Route.ActionArgs) {
 
     await prisma.comic.delete({ where: { id: comic.id } });
 
+    await removeAllThumbs(comic.id);
+
     try {
       const abs = resolveLibraryPath(comic.filePath);
       if (abs.startsWith(path.resolve(env.LIBRARY_PATH))) {
@@ -71,6 +75,7 @@ export default function ComicDetail({ loaderData }: Route.ComponentProps) {
   const { user, comic } = loaderData;
   const [searchParams] = useSearchParams();
   const isDup = searchParams.get("dup") === "1";
+  const wasSaved = searchParams.get("saved") === "1";
 
   const progress = comic.progress[0];
   const canDelete = comic.importedById === user.id;
@@ -85,16 +90,26 @@ export default function ComicDetail({ loaderData }: Route.ComponentProps) {
 
       {isDup ? (
         <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-          This comic was already in the library — jumped to the existing
-          entry.
+          This comic was already in the library — jumped to the existing entry.
+        </div>
+      ) : null}
+
+      {wasSaved ? (
+        <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+          Changes saved.
         </div>
       ) : null}
 
       <div className="flex flex-col gap-6 sm:flex-row">
-        <div className="aspect-[2/3] w-full max-w-[240px] flex-none overflow-hidden rounded-md border bg-muted">
-          <div className="flex h-full w-full items-center justify-center p-4 text-center text-sm text-muted-foreground">
-            {comic.title}
-          </div>
+        <div className="aspect-2/3 w-full max-w-96 flex-none overflow-hidden border bg-muted">
+          <img
+            src={thumbUrl(comic.id, comic.coverPage, "card")}
+            alt={`Cover of ${comic.title}`}
+            className="h-full w-full object-cover"
+            loading="eager"
+            decoding="async"
+            draggable={false}
+          />
         </div>
 
         <div className="flex flex-col gap-3">
@@ -111,7 +126,10 @@ export default function ComicDetail({ loaderData }: Route.ComponentProps) {
           </div>
 
           {comic.summary ? (
-            <p className="whitespace-pre-wrap text-sm">{comic.summary}</p>
+            <div
+              className="prose prose-sm prose-p:mb-1 max-w-none"
+              dangerouslySetInnerHTML={{ __html: comic.summary }}
+            />
           ) : null}
 
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
@@ -155,6 +173,11 @@ export default function ComicDetail({ loaderData }: Route.ComponentProps) {
             <Button asChild>
               <Link to={`/comics/${comic.id}/read`}>Read</Link>
             </Button>
+            {canDelete ? (
+              <Button asChild variant="secondary">
+                <Link to={`/comics/${comic.id}/edit`}>Edit</Link>
+              </Button>
+            ) : null}
             {canDelete ? (
               <Form method="post">
                 <input type="hidden" name="intent" value="delete" />

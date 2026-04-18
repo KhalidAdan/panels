@@ -6,11 +6,13 @@ export function PageImage({
   pageIndex,
   totalPages,
   className,
+  imgClassName,
 }: {
   comicId: string;
   pageIndex: number;
   totalPages: number;
   className?: string;
+  imgClassName?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -44,8 +46,9 @@ export function PageImage({
           src={src}
           alt={`Page ${pageIndex + 1} of ${totalPages}`}
           className={cn(
-            "max-h-full max-w-full object-contain transition-opacity",
+            "transition-opacity",
             loaded ? "opacity-100" : "opacity-0",
+            imgClassName ?? "max-h-full max-w-full object-contain",
           )}
           loading="eager"
           decoding="async"

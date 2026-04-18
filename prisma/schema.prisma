@@ -116,12 +116,14 @@ model Comic {
   coverPage    Int      @default(0)
   isManga      Boolean  @default(false)
   metadataJson String?
+  comicvineId  String?
   importedById String?
   importedBy   User?    @relation("ComicImporter", fields: [importedById], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   progress ReadingProgress[]
+  pages    Page[]
 
   @@index([series, volume, issueNumber])
   @@index([title])
@@ -140,4 +142,28 @@ model ReadingProgress {
 
   @@unique([userId, comicId])
   @@index([userId, lastReadAt])
+}
+
+model ComicVineCache {
+  cacheKey   String   @id
+  payload    String
+  fetchedAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([expiresAt])
+}
+
+model Page {
+  id        String  @id @default(cuid())
+  comicId   String
+  pageIndex Int
+  isWide    Boolean @default(false)
+  type      String?
+  width     Int?
+  height    Int?
+
+  comic Comic @relation(fields: [comicId], references: [id], onDelete: Cascade)
+
+  @@unique([comicId, pageIndex])
+  @@index([comicId])
 }

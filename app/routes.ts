@@ -19,11 +19,17 @@ export default [
   route("upload", "routes/upload.tsx"),
   route("comics/:comicId", "routes/comics.$comicId._index.tsx"),
   route("comics/:comicId/read", "routes/comics.$comicId.read.tsx"),
+  route("comics/:comicId/edit", "routes/comics.$comicId.edit.tsx"),
 
   // Resource routes
   route(
     "resources/page/:comicId/:page",
     "routes/resources.page.$comicId.$page.ts",
   ),
+  route(
+    "resources/thumb/:comicId/:page/:size",
+    "routes/resources.thumb.$comicId.$page.$size.ts",
+  ),
   route("resources/progress", "routes/resources.progress.ts"),
+  route("resources/prefs", "routes/resources.prefs.ts"),
 ] satisfies RouteConfig;
