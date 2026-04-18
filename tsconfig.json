@@ -24,7 +24,6 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
     "paths": {
       "#app/*": ["./app/*"],
       "#tests/*": ["./tests/*"]
