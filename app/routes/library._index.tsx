@@ -1,15 +1,10 @@
-import { Form, Link, redirect, useSearchParams } from "react-router";
 import { Badge } from "#app/components/ui/badge";
 import { Button } from "#app/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "#app/components/ui/card";
 import { requireUser } from "#app/lib/auth-utils.server";
 import { prisma } from "#app/lib/db.server";
 import { thumbUrl } from "#app/lib/thumbnails";
+import { Form, Link, redirect, useSearchParams } from "react-router";
+import type { Route } from "./+types/library._index";
 
 function escapeHtml(s: string): string {
   return s
@@ -60,8 +55,8 @@ export default function Library({ loaderData }: Route.ComponentProps) {
         <div>
           <h1 className="text-2xl font-semibold">Library</h1>
           <p className="text-sm text-muted-foreground">
-            {comics.length} {comics.length === 1 ? "comic" : "comics"} ·
-            Signed in as {user.name}
+            {comics.length} {comics.length === 1 ? "comic" : "comics"} · Signed
+            in as {user.name}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -106,7 +101,7 @@ export default function Library({ loaderData }: Route.ComponentProps) {
                 className="group block"
                 aria-label={comic.title}
               >
-                <div className="aspect-[2/3] w-full overflow-hidden rounded-md border bg-muted">
+                <div className="aspect-2/3 w-full overflow-hidden border bg-muted">
                   <img
                     src={thumbUrl(comic.id, comic.coverPage, "card")}
                     alt={`Cover of ${comic.title}`}
