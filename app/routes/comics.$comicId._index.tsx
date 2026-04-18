@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "#app/components/ui/card";
+import { evict } from "#app/lib/archive-cache.server";
 import { requireUser } from "#app/lib/auth-utils.server";
 import { prisma } from "#app/lib/db.server";
 import { env } from "#app/lib/env.server";
@@ -46,6 +47,8 @@ export async function action({ params, request }: Route.ActionArgs) {
     if (comic.importedById !== user.id) {
       throw new Response("Forbidden", { status: 403 });
     }
+
+    await evict(comic.id);
 
     await prisma.comic.delete({ where: { id: comic.id } });
 
@@ -149,8 +152,8 @@ export default function ComicDetail({ loaderData }: Route.ComponentProps) {
           </dl>
 
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button disabled aria-disabled title="Reader ships in Phase 3">
-              Read (Phase 3)
+            <Button asChild>
+              <Link to={`/comics/${comic.id}/read`}>Read</Link>
             </Button>
             {canDelete ? (
               <Form method="post">

@@ -18,4 +18,12 @@ export default [
   route("onboarding", "routes/onboarding.tsx"),
   route("upload", "routes/upload.tsx"),
   route("comics/:comicId", "routes/comics.$comicId._index.tsx"),
+  route("comics/:comicId/read", "routes/comics.$comicId.read.tsx"),
+
+  // Resource routes
+  route(
+    "resources/page/:comicId/:page",
+    "routes/resources.page.$comicId.$page.ts",
+  ),
+  route("resources/progress", "routes/resources.progress.ts"),
 ] satisfies RouteConfig;
