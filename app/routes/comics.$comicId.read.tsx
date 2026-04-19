@@ -384,7 +384,8 @@ function PaginatedReader({
     }
   }
 
-  const zoomStyle = zoom > 0 ? { transform: `scale(${1 + zoom * 0.5})` } : {};
+  const zoomClasses = ["", "w-[45%]", "w-[65%]", "w-[85%]"] as const;
+
   const atStart = pageIndex === 0;
   const atEnd = pageIndex === comic.pageCount - 1;
 
@@ -421,9 +422,10 @@ function PaginatedReader({
         <div className="flex items-center gap-1 text-xs text-white/70">
           <span className="mr-2">
             Page {pageIndex + 1} / {comic.pageCount}
-            {zoom > 0 && ` · ${100 + zoom * 50}%`}
+            {zoom > 0 &&
+              ` · ${zoom == 1 ? "45" : zoom == 2 ? "65" : "85"}% page width`}
             {rtl ? " · RTL" : ""}
-            {doublePage ? " · 2P" : ""}
+            {doublePage ? " · 2P" : ""}t
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -536,49 +538,76 @@ function PaginatedReader({
       </header>
 
       <div
-        className="flex-1 cursor-pointer select-none overflow-scroll"
+        className={cn(
+          "flex flex-1 cursor-pointer select-none justify-center overflow-auto",
+          zoom === 0 ? "items-center" : "items-start",
+        )}
         onClick={onPageClick}
         role="button"
         tabIndex={-1}
       >
         {doublePage && currentSpread?.kind === "pair" ? (
-          <div
-            className={cn(
-              "flex h-full w-full items-center justify-center",
-              rtl ? "flex-row-reverse" : "flex-row",
-            )}
-          >
-            <SpreadHalf
-              comicId={comic.id}
-              pageIndex={currentSpread.left}
-              totalPages={comic.pageCount}
-              fit={fit}
-              zoomStyle={zoomStyle}
-            />
-            <SpreadHalf
-              comicId={comic.id}
-              pageIndex={currentSpread.right}
-              totalPages={comic.pageCount}
-              fit={fit}
-              zoomStyle={zoomStyle}
-            />
-          </div>
-        ) : (
-          <div
-            className={cn(
-              zoom === 0
-                ? "flex h-full w-full items-center justify-center"
-                : "h-full w-full items-center justify-center",
-            )}
-          >
+          zoom > 0 ? (
+            <div
+              className={cn(
+                "flex shrink-0 items-start",
+                rtl ? "flex-row-reverse" : "flex-row",
+                zoomClasses[zoom],
+              )}
+            >
+              <SpreadHalf
+                comicId={comic.id}
+                pageIndex={currentSpread.left}
+                totalPages={comic.pageCount}
+                fit={fit}
+                zoomed
+              />
+              <SpreadHalf
+                comicId={comic.id}
+                pageIndex={currentSpread.right}
+                totalPages={comic.pageCount}
+                fit={fit}
+                zoomed
+              />
+            </div>
+          ) : (
+            <div
+              className={cn(
+                "flex h-full w-full items-center justify-center",
+                rtl ? "flex-row-reverse" : "flex-row",
+              )}
+            >
+              <SpreadHalf
+                comicId={comic.id}
+                pageIndex={currentSpread.left}
+                totalPages={comic.pageCount}
+                fit={fit}
+              />
+              <SpreadHalf
+                comicId={comic.id}
+                pageIndex={currentSpread.right}
+                totalPages={comic.pageCount}
+                fit={fit}
+              />
+            </div>
+          )
+        ) : zoom > 0 ? (
+          <div className={cn("shrink-0", zoomClasses[zoom])}>
             <PageImage
               comicId={comic.id}
               pageIndex={pageIndex}
               totalPages={comic.pageCount}
-              imgClassName={FIT_CLASSES[fit]}
-              style={zoomStyle}
+              className="block h-auto w-full"
+              imgClassName="block h-auto w-full object-contain"
             />
           </div>
+        ) : (
+          <PageImage
+            comicId={comic.id}
+            pageIndex={pageIndex}
+            totalPages={comic.pageCount}
+            imgClassName={FIT_CLASSES[fit]}
+          />
         )}
       </div>
 
@@ -645,13 +674,13 @@ function SpreadHalf({
   pageIndex,
   totalPages,
   fit,
-  zoomStyle,
+  zoomed,
 }: {
   comicId: string;
   pageIndex: number;
   totalPages: number;
   fit: FitMode;
-  zoomStyle?: React.CSSProperties;
+  zoomed?: boolean;
 }) {
   const fitClass =
     fit === "screen"
@@ -659,6 +688,19 @@ function SpreadHalf({
       : fit === "width"
         ? "w-full h-auto object-contain"
         : "h-full w-auto object-contain";
+  if (zoomed) {
+    return (
+      <div className="w-1/2">
+        <PageImage
+          comicId={comicId}
+          pageIndex={pageIndex}
+          totalPages={totalPages}
+          className="block h-auto w-full"
+          imgClassName="block h-auto w-full object-contain"
+        />
+      </div>
+    );
+  }
   return (
     <div className="flex h-full w-1/2 items-center justify-center">
       <PageImage
@@ -666,7 +708,6 @@ function SpreadHalf({
         pageIndex={pageIndex}
         totalPages={totalPages}
         imgClassName={fitClass}
-        style={zoomStyle}
       />
     </div>
   );
