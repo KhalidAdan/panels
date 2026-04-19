@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { Link, useFetcher, useNavigate, useSearchParams } from "react-router";
 import { HelpDialog } from "#app/components/reader/help-dialog";
 import { JumpToPageDialog } from "#app/components/reader/jump-to-page";
 import { PageImage } from "#app/components/reader/page-image";
 import { useSaveProgress } from "#app/components/reader/progress";
+import { switchReaderMode } from "#app/components/reader/switch-mode";
 import { Button } from "#app/components/ui/button";
 import {
   DropdownMenu,
@@ -20,9 +19,16 @@ import {
   type ContinuousFitMode,
   type ReaderPrefs,
 } from "#app/lib/reader-prefs";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
+import { Link, useFetcher, useNavigate, useSearchParams } from "react-router";
 import { scrollToPageIndex } from "./use-cursor-observer";
 import { VerticalThumbs } from "./vertical-thumbs";
-import { switchReaderMode } from "#app/components/reader/switch-mode";
 
 const BG_CLASSES: Record<BackgroundColor, string> = {
   black: "bg-black text-white",
@@ -55,7 +61,9 @@ export function ContinuousReader({
   const [helpOpen, setHelpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [fit, setFit] = useState<ContinuousFitMode>(prefs.continuousFit);
-  const [background, setBackground] = useState<BackgroundColor>(prefs.background);
+  const [background, setBackground] = useState<BackgroundColor>(
+    prefs.background,
+  );
 
   const [cursor, setCursor] = useState(initialIndex);
 
@@ -81,9 +89,14 @@ export function ContinuousReader({
   useEffect(() => {
     if (initialScrollDone.current) return;
     if (scrollRef.current && initialIndex > 0) {
-      const el = scrollRef.current?.querySelector(`[data-page-index="${initialIndex}"]`);
+      const el = scrollRef.current?.querySelector(
+        `[data-page-index="${initialIndex}"]`,
+      );
       if (el) {
-        (el as HTMLElement).scrollIntoView({ behavior: "instant", block: "start" });
+        (el as HTMLElement).scrollIntoView({
+          behavior: "instant",
+          block: "start",
+        });
       }
     }
     initialScrollDone.current = true;
@@ -100,15 +113,12 @@ export function ContinuousReader({
 
   useSaveProgress(comic.id, cursor);
 
-  const gotoPage = useCallback(
-    (index: number) => {
-      if (scrollRef.current) {
-        scrollToPageIndex(scrollRef.current, index);
-      }
-      setCursor(index);
-    },
-    [],
-  );
+  const gotoPage = useCallback((index: number) => {
+    if (scrollRef.current) {
+      scrollToPageIndex(scrollRef.current, index);
+    }
+    setCursor(index);
+  }, []);
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -238,7 +248,7 @@ export function ContinuousReader({
   };
 
   return (
-    <div className={cn("flex h-[100dvh] flex-col", BG_CLASSES[background])}>
+    <div className={cn("flex h-dvh flex-col", BG_CLASSES[background])}>
       <header className="flex items-center justify-between gap-2 border-b border-white/10 bg-black/80 px-3 py-2 text-sm text-white">
         <div className="flex min-w-0 items-center gap-2">
           <Button
@@ -300,11 +310,17 @@ export function ContinuousReader({
               <DropdownMenuLabel>Background</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={background}
-                onValueChange={(value) => changeBackground(value as BackgroundColor)}
+                onValueChange={(value) =>
+                  changeBackground(value as BackgroundColor)
+                }
               >
-                <DropdownMenuRadioItem value="black">Black</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="black">
+                  Black
+                </DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="gray">Gray</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="white">White</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="white">
+                  White
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -344,7 +360,7 @@ export function ContinuousReader({
         </div>
       </header>
 
-      <main className="relative flex-1 overflow-hidden">
+      <main className="overflow-hidden">
         {sidebarOpen && (
           <VerticalThumbs
             comicId={comic.id}
@@ -354,7 +370,7 @@ export function ContinuousReader({
             side={sidebarSide}
             onDismiss={() => {
               setSidebarOpen(false);
-setSidebarOpen(false);
+              setSidebarOpen(false);
             }}
           />
         )}
@@ -404,16 +420,9 @@ interface PageSlotProps {
   totalPages: number;
 }
 
-function PageSlot({
-  pageIndex,
-  comicId,
-  totalPages,
-}: PageSlotProps) {
+function PageSlot({ pageIndex, comicId, totalPages }: PageSlotProps) {
   return (
-    <div
-      data-page-index={pageIndex}
-      className="w-full flex justify-center"
-    >
+    <div data-page-index={pageIndex} className="w-full flex justify-center">
       <PageImage
         comicId={comicId}
         pageIndex={pageIndex}
@@ -472,11 +481,7 @@ function ScrollContainer({
       ref={ref}
       className={cn(
         "h-full overflow-y-auto",
-        sidebarOpen
-          ? sidebarSide === "left"
-            ? "ml-28"
-            : "mr-28"
-          : "",
+        sidebarOpen ? (sidebarSide === "left" ? "ml-28" : "mr-28") : "",
       )}
     >
       {Array.from({ length: pageCount }, (_, i) => (
