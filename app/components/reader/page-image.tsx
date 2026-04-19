@@ -7,12 +7,16 @@ export function PageImage({
   totalPages,
   className,
   imgClassName,
+  style,
+  onClick,
 }: {
   comicId: string;
   pageIndex: number;
   totalPages: number;
   className?: string;
   imgClassName?: string;
+  style?: React.CSSProperties;
+  onClick?: React.MouseEventHandler<HTMLImageElement>;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -37,7 +41,7 @@ export function PageImage({
   return (
     <div
       className={cn(
-        "relative flex h-full w-full items-center justify-center",
+        "relative flex h-full w-full items-start justify-center",
         className,
       )}
     >
@@ -62,12 +66,14 @@ export function PageImage({
             loaded ? "opacity-100" : "opacity-0",
             imgClassName ?? "max-h-full max-w-full object-contain",
           )}
+          style={style}
           loading="eager"
           decoding="async"
           fetchPriority="high"
           draggable={false}
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
+          onClick={onClick}
         />
       )}
     </div>

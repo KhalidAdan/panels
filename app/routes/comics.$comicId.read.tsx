@@ -190,6 +190,7 @@ function PaginatedReader({
   const [stripOpen, setStripOpen] = useState(false);
 
   const [fit, setFit] = useState<FitMode>(prefs.fit as FitMode);
+  const [zoom, setZoom] = useState(0);
   const [doublePage, setDoublePage] = useState(prefs.doublePage);
   const [background, setBackground] = useState<BackgroundColor>(
     prefs.background as BackgroundColor,
@@ -349,11 +350,24 @@ function PaginatedReader({
           });
           event.preventDefault();
           break;
+        case "+":
+        case "=":
+          setZoom((z) => Math.min(z + 1, 3));
+          event.preventDefault();
+          break;
+        case "-":
+          setZoom((z) => Math.max(z - 1, 0));
+          event.preventDefault();
+          break;
+        case "0":
+          setZoom(0);
+          event.preventDefault();
+          break;
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [savePrefs]);
+  }, [savePrefs, zoom]);
 
   function onPageClick(event: React.MouseEvent<HTMLDivElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -365,9 +379,12 @@ function PaginatedReader({
     } else if (x > 2 * third) {
       if (rtl) gotoPrev();
       else gotoNext();
+    } else {
+      setZoom((z) => (z === 0 ? 1 : 0));
     }
   }
 
+  const zoomStyle = zoom > 0 ? { transform: `scale(${1 + zoom * 0.5})` } : {};
   const atStart = pageIndex === 0;
   const atEnd = pageIndex === comic.pageCount - 1;
 
@@ -388,7 +405,7 @@ function PaginatedReader({
   };
 
   return (
-    <div className={cn("flex h-[100dvh] flex-col", BG_CLASSES[background])}>
+    <div className={cn("flex h-dvh flex-col", BG_CLASSES[background])}>
       <header className="flex items-center justify-between gap-2 border-b border-white/10 bg-black/80 px-3 py-2 text-sm text-white">
         <div className="flex min-w-0 items-center gap-2">
           <Button
@@ -404,6 +421,7 @@ function PaginatedReader({
         <div className="flex items-center gap-1 text-xs text-white/70">
           <span className="mr-2">
             Page {pageIndex + 1} / {comic.pageCount}
+            {zoom > 0 && ` · ${100 + zoom * 50}%`}
             {rtl ? " · RTL" : ""}
             {doublePage ? " · 2P" : ""}
           </span>
@@ -518,7 +536,7 @@ function PaginatedReader({
       </header>
 
       <div
-        className="relative flex-1 cursor-pointer select-none overflow-hidden"
+        className="flex-1 cursor-pointer select-none overflow-scroll"
         onClick={onPageClick}
         role="button"
         tabIndex={-1}
@@ -535,21 +553,30 @@ function PaginatedReader({
               pageIndex={currentSpread.left}
               totalPages={comic.pageCount}
               fit={fit}
+              zoomStyle={zoomStyle}
             />
             <SpreadHalf
               comicId={comic.id}
               pageIndex={currentSpread.right}
               totalPages={comic.pageCount}
               fit={fit}
+              zoomStyle={zoomStyle}
             />
           </div>
         ) : (
-          <div className="flex h-full w-full items-center justify-center">
+          <div
+            className={cn(
+              zoom === 0
+                ? "flex h-full w-full items-center justify-center"
+                : "h-full w-full items-center justify-center",
+            )}
+          >
             <PageImage
               comicId={comic.id}
               pageIndex={pageIndex}
               totalPages={comic.pageCount}
               imgClassName={FIT_CLASSES[fit]}
+              style={zoomStyle}
             />
           </div>
         )}
@@ -618,11 +645,13 @@ function SpreadHalf({
   pageIndex,
   totalPages,
   fit,
+  zoomStyle,
 }: {
   comicId: string;
   pageIndex: number;
   totalPages: number;
   fit: FitMode;
+  zoomStyle?: React.CSSProperties;
 }) {
   const fitClass =
     fit === "screen"
@@ -637,6 +666,7 @@ function SpreadHalf({
         pageIndex={pageIndex}
         totalPages={totalPages}
         imgClassName={fitClass}
+        style={zoomStyle}
       />
     </div>
   );
