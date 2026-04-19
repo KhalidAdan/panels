@@ -1,19 +1,20 @@
 import { z } from "zod";
+import type { ReaderPrefs } from "./reader-prefs";
 
-export const FitMode = z.enum(["screen", "width", "height"]);
-export type FitMode = z.infer<typeof FitMode>;
+const FitMode = z.enum(["screen", "width", "height"]);
+const ContinuousFitMode = z.enum(["width", "original"]);
+const ReaderMode = z.enum(["paginated", "continuous"]);
+const BackgroundColor = z.enum(["black", "gray", "white"]);
 
-export const BackgroundColor = z.enum(["black", "gray", "white"]);
-export type BackgroundColor = z.infer<typeof BackgroundColor>;
-
-export const ReaderPrefsSchema = z.object({
+const ReaderPrefsSchema = z.object({
+  readerMode: ReaderMode.default("paginated"),
   fit: FitMode.default("screen"),
   doublePage: z.boolean().default(false),
   background: BackgroundColor.default("black"),
   rtlOverride: z.enum(["auto", "ltr", "rtl"]).default("auto"),
+  continuousFit: ContinuousFitMode.default("width"),
+  thumbSidebarOpen: z.boolean().default(false),
 });
-
-export type ReaderPrefs = z.infer<typeof ReaderPrefsSchema>;
 
 const COOKIE_NAME = "panels-prefs";
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -49,15 +50,4 @@ function parseCookie(header: string): Record<string, string> {
     out[k] = rest.join("=");
   }
   return out;
-}
-
-export function resolveRTL(prefs: ReaderPrefs, isManga: boolean): boolean {
-  switch (prefs.rtlOverride) {
-    case "ltr":
-      return false;
-    case "rtl":
-      return true;
-    case "auto":
-      return isManga;
-  }
 }

@@ -7,9 +7,11 @@ export function useSaveProgress(comicId: string, pageIndex: number): void {
   const fetcher = useFetcher();
   const timer = useRef<number | null>(null);
   const latest = useRef(pageIndex);
-  latest.current = pageIndex;
 
   useEffect(() => {
+    if (pageIndex === latest.current) return;
+    latest.current = pageIndex;
+
     if (timer.current !== null) {
       window.clearTimeout(timer.current);
     }

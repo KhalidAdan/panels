@@ -174,10 +174,14 @@ export async function hashFile(absPath: string): Promise<string> {
   try {
     await pipe(
       from(file),
-      tap((chunk: Buffer) => {
+      tap((chunk) => {
         hash.update(chunk);
       }),
-      collectBytes(),
+      async (source) => {
+        // drain
+        for await (const _ of source) {
+        }
+      },
     );
   } finally {
     file.close();

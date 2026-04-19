@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { cn } from "#app/lib/misc";
+import { useEffect, useState } from "react";
 
 export function PageImage({
   comicId,
