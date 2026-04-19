@@ -2,12 +2,15 @@ import { z } from "zod";
 import { requireUser } from "#app/lib/auth-utils.server";
 import {
   BackgroundColor,
+  ContinuousFitMode,
   FitMode,
+  ReaderMode,
   serializePrefs,
-} from "#app/lib/reader-prefs.server";
+} from "#app/lib/reader-prefs";
 import type { Route } from "./+types/resources.prefs";
 
 const PatchSchema = z.object({
+  readerMode: ReaderMode.optional(),
   fit: FitMode.optional(),
   doublePage: z
     .union([z.literal("true"), z.literal("false"), z.boolean()])
@@ -15,6 +18,11 @@ const PatchSchema = z.object({
     .transform((v) => (typeof v === "boolean" ? v : v === "true")),
   background: BackgroundColor.optional(),
   rtlOverride: z.enum(["auto", "ltr", "rtl"]).optional(),
+  continuousFit: ContinuousFitMode.optional(),
+  thumbSidebarOpen: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .optional()
+    .transform((v) => (typeof v === "boolean" ? v : v === "true")),
 });
 
 export async function loader() {

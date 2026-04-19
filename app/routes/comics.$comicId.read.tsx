@@ -1,11 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Link,
-  redirect,
-  useFetcher,
-  useNavigate,
-  useSearchParams,
-} from "react-router";
+import { ContinuousReader } from "#app/components/reader/continuous/continuous-reader";
 import {
   computeSpreads,
   findSpreadIndex,
@@ -18,6 +11,7 @@ import { useReaderKeyboard } from "#app/components/reader/keyboard";
 import { PageImage } from "#app/components/reader/page-image";
 import { usePagePrefetch } from "#app/components/reader/prefetch";
 import { useSaveProgress } from "#app/components/reader/progress";
+import { switchReaderMode } from "#app/components/reader/switch-mode";
 import {
   ThumbnailStrip,
   ThumbnailToggle,
@@ -37,11 +31,22 @@ import { requireUser } from "#app/lib/auth-utils.server";
 import { prisma } from "#app/lib/db.server";
 import { cn } from "#app/lib/misc";
 import {
-  readPrefs,
   resolveRTL,
   type BackgroundColor,
   type FitMode,
-} from "#app/lib/reader-prefs.server";
+  type ReaderMode,
+  type ReaderPrefs,
+} from "#app/lib/reader-prefs";
+import { readPrefs as readPrefsServer } from "#app/lib/reader-prefs.server";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Link,
+  redirect,
+  useFetcher,
+  useNavigate,
+  useSearchParams,
+} from "react-router";
+import type { Route } from "./+types/comics.$comicId.read";
 
 export function meta() {
   return [{ title: "Reader — panels" }];
@@ -61,7 +66,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw redirect(`/comics/${comic.id}`);
   }
 
-  const prefs = readPrefs(request);
+  const prefs = readPrefsServer(request);
   const rtl = resolveRTL(prefs, comic.isManga);
 
   const url = new URL(request.url);
@@ -76,7 +81,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     }
   }
 
-  const isWide: boolean[] = Array.from({ length: comic.pageCount }, () => false);
+  const isWide: boolean[] = Array.from(
+    { length: comic.pageCount },
+    () => false,
+  );
   for (const p of comic.pages) {
     if (p.pageIndex >= 0 && p.pageIndex < comic.pageCount) {
       isWide[p.pageIndex] = p.isWide;
@@ -113,18 +121,78 @@ const FIT_CLASSES: Record<FitMode, string> = {
 };
 
 export default function Reader({ loaderData }: Route.ComponentProps) {
-  const { comic, initialIndex, prefs: initialPrefs, rtl: initialRtl, isWide } =
-    loaderData;
+  const { comic, initialIndex, prefs, isWide } = loaderData;
 
+  if (prefs.readerMode === "continuous") {
+    return (
+      <ContinuousReader
+        comic={{
+          id: comic.id,
+          title: comic.title,
+          pageCount: comic.pageCount,
+          isManga: comic.isManga,
+        }}
+        initialIndex={initialIndex}
+        prefs={prefs}
+        isWide={isWide}
+      />
+    );
+  }
+
+  return (
+    <PaginatedReader
+      comic={comic}
+      initialIndex={initialIndex}
+      prefs={prefs}
+      isWide={isWide}
+    />
+  );
+}
+
+function PaginatedReader({
+  comic,
+  initialIndex,
+  prefs,
+  isWide,
+}: {
+  comic: {
+    id: string;
+    title: string;
+    pageCount: number;
+    isManga: boolean;
+    coverPage: number;
+  };
+  initialIndex: number;
+  prefs: {
+    readerMode: ReaderMode;
+    fit: FitMode;
+    doublePage: boolean;
+    background: BackgroundColor;
+    rtlOverride: "auto" | "ltr" | "rtl";
+    continuousFit: "width" | "original";
+    thumbSidebarOpen: boolean;
+  };
+  isWide: boolean[];
+}) {
+  const paginatedPrefs: ReaderPrefs = {
+    readerMode: prefs.readerMode,
+    fit: prefs.fit as FitMode,
+    doublePage: prefs.doublePage,
+    background: prefs.background as BackgroundColor,
+    rtlOverride: prefs.rtlOverride,
+    continuousFit: prefs.continuousFit,
+    thumbSidebarOpen: prefs.thumbSidebarOpen,
+  };
+  const initialRtl = resolveRTL(paginatedPrefs, comic.isManga);
   const [pageIndex, setPageIndex] = useState(initialIndex);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [stripOpen, setStripOpen] = useState(false);
 
-  const [fit, setFit] = useState<FitMode>(initialPrefs.fit);
-  const [doublePage, setDoublePage] = useState(initialPrefs.doublePage);
+  const [fit, setFit] = useState<FitMode>(prefs.fit as FitMode);
+  const [doublePage, setDoublePage] = useState(prefs.doublePage);
   const [background, setBackground] = useState<BackgroundColor>(
-    initialPrefs.background,
+    prefs.background as BackgroundColor,
   );
   const [rtl, setRtl] = useState(initialRtl);
 
@@ -350,6 +418,23 @@ export default function Reader({ loaderData }: Route.ComponentProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Reader mode</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={prefs.readerMode}
+                onValueChange={(value) => {
+                  if (value === "continuous") {
+                    void switchReaderMode("continuous");
+                  }
+                }}
+              >
+                <DropdownMenuRadioItem value="paginated">
+                  Paginated
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="continuous">
+                  Continuous scroll
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>Fit</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={fit}
@@ -373,9 +458,13 @@ export default function Reader({ loaderData }: Route.ComponentProps) {
                   changeBackground(value as BackgroundColor)
                 }
               >
-                <DropdownMenuRadioItem value="black">Black</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="black">
+                  Black
+                </DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="gray">Gray</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="white">White</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="white">
+                  White
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem
@@ -476,10 +565,12 @@ export default function Reader({ loaderData }: Route.ComponentProps) {
             className="border-b border-white/10"
           />
         ) : null}
-        <div className={cn(
-          "flex items-center justify-between gap-2 px-3 py-2",
-          rtl ? "flex-row-reverse" : "flex-row",
-        )}>
+        <div
+          className={cn(
+            "flex items-center justify-between gap-2 px-3 py-2",
+            rtl ? "flex-row-reverse" : "flex-row",
+          )}
+        >
           <Button
             variant="ghost"
             className="text-white hover:bg-white/10 hover:text-white"
