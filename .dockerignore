@@ -1,4 +1,43 @@
-.react-router
-build
+# Don't copy these into any build stage.
+
+# Node
 node_modules
-README.md
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+build
+dist
+.react-router
+
+# Env + local data
+.env
+.env.*
+!.env.example
+.env.production
+data
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Prisma client output (regenerated in build stage)
+app/generated
+
+# Test + dev artifacts
+coverage
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml

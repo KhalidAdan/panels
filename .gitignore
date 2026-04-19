@@ -19,3 +19,6 @@
 !/data/tmp/.gitkeep
 
 scratch.md
+
+# Production env file (contains secrets)
+.env.production

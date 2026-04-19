@@ -116,10 +116,34 @@ function evictIfNeeded(): void {
   void closeEntry(lruId, entry);
 }
 
+import { disconnectPrisma } from "#app/lib/db.server";
+
+let shuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[panels] received ${signal}; shutting down`);
+
+  // Order matters: close archives first (they read from the DB on
+  // open but not on close), then disconnect Prisma.
+  try {
+    await Promise.race([
+      closeAll(),
+      new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+    ]);
+  } catch (err) {
+    console.error("[panels] archive shutdown failed", err);
+  }
+  await disconnectPrisma();
+  process.exit(0);
+}
+
 if (env.NODE_ENV === "production") {
-  const shutdown = () => {
-    void closeAll();
-  };
-  process.once("SIGTERM", shutdown);
-  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", () => {
+    void shutdown("SIGTERM");
+  });
+  process.once("SIGINT", () => {
+    void shutdown("SIGINT");
+  });
 }
