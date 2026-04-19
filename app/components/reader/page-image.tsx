@@ -1,5 +1,5 @@
 import { cn } from "#app/lib/misc";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function PageImage({
   comicId,
@@ -16,11 +16,22 @@ export function PageImage({
 }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   const src = `/resources/page/${comicId}/${pageIndex}`;
 
+  // Handle cached images: if `complete` is already true on mount, the onLoad
+  // event already fired before React attached its handler. Check ref.
   useEffect(() => {
     setLoaded(false);
     setErrored(false);
+    const img = imgRef.current;
+    if (img && img.complete) {
+      if (img.naturalWidth > 0) {
+        setLoaded(true);
+      } else {
+        setErrored(true);
+      }
+    }
   }, [src]);
 
   return (
@@ -42,6 +53,7 @@ export function PageImage({
         </div>
       ) : (
         <img
+          ref={imgRef}
           key={src}
           src={src}
           alt={`Page ${pageIndex + 1} of ${totalPages}`}

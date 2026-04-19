@@ -1,7 +1,7 @@
 import { Button } from "#app/components/ui/button";
 import { cn } from "#app/lib/misc";
-import { thumbUrl } from "#app/lib/thumbnails";
 import { useEffect, useMemo, useRef } from "react";
+import { ThumbnailButton } from "./thumbnail-button";
 
 const VISIBLE_WINDOW = 50;
 const ITEM_HEIGHT = 158;
@@ -51,7 +51,7 @@ export function VerticalThumbs({
     <aside
       ref={scrollRef}
       className={cn(
-        "fixed inset-y-0 w-28 overflow-y-auto bg-black/90 border-white/10",
+        "fixed inset-y-0 overflow-y-auto bg-black/90 border-white/10",
         side === "left" ? "left-0 border-r" : "right-0 border-l",
       )}
     >
@@ -71,29 +71,13 @@ export function VerticalThumbs({
       {renderedPages.map((pageIndex) => {
         const isCurrent = pageIndex === currentPage;
         return (
-          <button
-            key={pageIndex}
-            ref={isCurrent ? currentRef : undefined}
-            type="button"
-            onClick={() => onSelect(pageIndex)}
-            className={cn(
-              "block w-full border-b border-white/10 p-1 transition",
-              isCurrent ? "bg-white/10 ring-2 ring-white" : "hover:bg-white/5",
-            )}
-            aria-label={`Page ${pageIndex + 1}`}
-          >
-            <img
-              src={thumbUrl(comicId, pageIndex, "strip")}
-              alt=""
-              className="h-[150px] w-[100px] object-cover"
-              loading="eager"
-              decoding="async"
-              draggable={false}
-            />
-            <span className="block text-center text-xs text-white/70">
-              {pageIndex + 1}
-            </span>
-          </button>
+          <ThumbnailButton
+            id={comicId}
+            index={pageIndex}
+            isCurrent={isCurrent}
+            ref={currentRef}
+            on={onSelect}
+          />
         );
       })}
 

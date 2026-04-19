@@ -1,3 +1,4 @@
+import { Badge } from "#app/components/ui/badge.js";
 import { Button } from "#app/components/ui/button";
 import { evict } from "#app/lib/archive-cache.server";
 import { requireUser } from "#app/lib/auth-utils.server";
@@ -81,7 +82,7 @@ export default function ComicDetail({ loaderData }: Route.ComponentProps) {
   const canDelete = comic.importedById === user.id;
 
   return (
-    <div className="container mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-6">
+    <div className="container mx-auto flex min-h-screen max-w-4xl flex-col gap-6 p-6">
       <header className="flex items-center gap-2">
         <Button asChild variant="ghost" size="sm">
           <Link to="/library">← Library</Link>
@@ -116,12 +117,15 @@ export default function ComicDetail({ loaderData }: Route.ComponentProps) {
           <div>
             <h1 className="text-2xl font-semibold">{comic.title}</h1>
             {comic.series ? (
-              <p className="text-sm text-muted-foreground">
-                {comic.series}
-                {comic.issueNumber ? ` #${comic.issueNumber}` : ""}
-                {comic.year ? ` · ${comic.year}` : ""}
-                {comic.publisher ? ` · ${comic.publisher}` : ""}
-              </p>
+              <div className="flex flex-col gap-1">
+                <p className="text-base text-muted-foreground">
+                  {comic.series}
+                </p>
+                <div className="flex gap-1">
+                  <Badge variant="secondary">{comic.year}</Badge>
+                  <Badge variant="secondary">{comic.publisher}</Badge>
+                </div>
+              </div>
             ) : null}
           </div>
 
