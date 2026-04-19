@@ -115,16 +115,16 @@ export default function ComicDetail({ loaderData }: Route.ComponentProps) {
 
         <div className="flex flex-col gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">{comic.title}</h1>
+            <div className="flex gap-1">
+              <Badge variant="secondary">{comic.year}</Badge>
+              <Badge variant="secondary">{comic.publisher}</Badge>
+            </div>
+            <h1 className="text-2xl font-semibold mt-1">{comic.title}</h1>
             {comic.series ? (
               <div className="flex flex-col gap-1">
                 <p className="text-base text-muted-foreground">
                   {comic.series}
                 </p>
-                <div className="flex gap-1">
-                  <Badge variant="secondary">{comic.year}</Badge>
-                  <Badge variant="secondary">{comic.publisher}</Badge>
-                </div>
               </div>
             ) : null}
           </div>

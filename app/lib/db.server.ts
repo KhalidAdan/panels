@@ -23,8 +23,10 @@ declare global {
 export const prisma: PrismaClient = globalThis.__prisma ?? createPrisma();
 if (env.NODE_ENV !== "production") globalThis.__prisma = prisma;
 
-if (env.NODE_ENV === "production") {
-  process.once("SIGTERM", () => {
-    void prisma.$disconnect().finally(() => process.exit(0));
-  });
+export async function disconnectPrisma(): Promise<void> {
+  try {
+    await prisma.$disconnect();
+  } catch (err) {
+    console.error("[db] disconnect failed", err);
+  }
 }

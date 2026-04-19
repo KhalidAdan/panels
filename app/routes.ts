@@ -32,4 +32,7 @@ export default [
   ),
   route("resources/progress", "routes/resources.progress.ts"),
   route("resources/prefs", "routes/resources.prefs.ts"),
+
+  // Healthcheck - not gated by requireUser (used by Docker/Caddy)
+  route("resources/healthz", "routes/resources.healthz.ts"),
 ] satisfies RouteConfig;

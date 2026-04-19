@@ -1,0 +1,77 @@
+name: panels
+
+services:
+  panels:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: panels:latest
+    container_name: panels
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      DATABASE_URL: "file:/data/db/panels.db"
+      BETTER_AUTH_URL: "${BETTER_AUTH_URL:?BETTER_AUTH_URL is required}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}"
+      LIBRARY_PATH: /data/library
+      CACHE_PATH: /data/cache
+      UPLOAD_TEMP_PATH: /data/tmp
+      # Optional
+      COMICVINE_API_KEY: "${COMICVINE_API_KEY:-}"
+      COMICVINE_USER_AGENT: "${COMICVINE_USER_AGENT:-panels/0.1 (self-hosted comic reader)}"
+      # First-boot seed. Unset after initial deploy to disable.
+      SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-}"
+      SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:-}"
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - db-data:/data/db
+      - cache-data:/data/cache
+      - tmp-data:/data/tmp
+      - ${PANELS_LIBRARY_PATH:?PANELS_LIBRARY_PATH is required}:/data/library
+    expose:
+      - "3000"
+    networks:
+      - web
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:3000/resources/healthz || exit 1",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    stop_grace_period: 15s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: panels-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - web
+    depends_on:
+      panels:
+        condition: service_healthy
+
+volumes:
+  db-data: {}
+  cache-data: {}
+  tmp-data: {}
+  caddy-data: {}
+  caddy-config: {}
+
+networks:
+  web:
+    driver: bridge
