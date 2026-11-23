@@ -22,3 +22,5 @@ scratch.md
 
 # Production env file (contains secrets)
 .env.production
+# Local env file (contains secrets); copy .env.example
+.env
